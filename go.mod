@@ -17,7 +17,7 @@ module github.com/LFDT-Iguazu/iguazu-coordinator
 go 1.21
 
 require (
-	github.com/LFDT-Iguazu/iguazu-types v0.2.0
+	github.com/LFDT-Iguazu/iguazu-types v0.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.11.1
@@ -40,6 +40,3 @@ require (
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// Local checkout until iguazu-types is published at github.com/LFDT-Iguazu.
-replace github.com/LFDT-Iguazu/iguazu-types => ../iguazu-types

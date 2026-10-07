@@ -1,3 +1,5 @@
+github.com/LFDT-Iguazu/iguazu-types v0.1.0 h1:RD1Pq3S4OIqQjMzRih2oH2LwnL+bZ3DdEJ7bUZtfjWo=
+github.com/LFDT-Iguazu/iguazu-types v0.1.0/go.mod h1:IU87cZ9ak2bS1CaipSX8zfJJPPZAMnbc3YEQcP6YktQ=
 github.com/cpuguy83/go-md2man/v2 v2.0.2 h1:p1EgwI/C7NhT0JmVkwCD2ZBK8j4aeHQX2pMHHBfMQ6w=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
