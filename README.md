@@ -1,5 +1,9 @@
 # iguazu-coordinator
 
+![GitHub License](https://img.shields.io/github/license/LFDT-Iguazu/iguazu-coordinator)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/LFDT-Iguazu/iguazu-coordinator/badge)](https://scorecard.dev/viewer/?uri=github.com/LFDT-Iguazu/iguazu-coordinator)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/16199/badge)](https://www.bestpractices.dev/projects/16199)
+
 Apache 2.0 sidecar binary for the Iguazu network. Runs alongside the Prysm-based `coordinator` node (GPL-3.0) and owns all asynchronous Iguazu-specific work — starting with the DAG finalization loop.
 
 `iguazu-coordinator` has **zero dependency on coordinator / Prysm code**. It communicates with the coordinator exclusively over gRPC, which makes the two processes a "mere aggregation" under GPL-3.0 §5.
@@ -128,6 +132,24 @@ Service name on the wire: `ethereum.eth.v1alpha1.CoordinatorInternal`
 | `iguazu-types` | Apache 2.0 | Shared types and interfaces |
 
 ---
+
+## Releases
+
+Releases are published as [GitHub Releases](https://github.com/LFDT-Iguazu/iguazu-coordinator/releases) with signed provenance;
+see [RELEASE.md](RELEASE.md) for the process and how to verify them, and [CHANGELOG.md](CHANGELOG.md)
+for the changes. Use the module with:
+
+```shell
+go get github.com/LFDT-Iguazu/iguazu-coordinator@latest
+```
+
+## Documentation
+
+API documentation is available on [pkg.go.dev](https://pkg.go.dev/github.com/LFDT-Iguazu/iguazu-coordinator).
+
+## Adopters
+
+If you use Iguazu, please add yourself to [ADOPTERS.md](ADOPTERS.md).
 
 ## Contributing
 
