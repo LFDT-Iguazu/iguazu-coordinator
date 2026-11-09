@@ -31,6 +31,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -111,6 +113,12 @@ func (s *Service) processHead(ctx context.Context, head *coordpb.NewHeadEvent) e
 		BlockRoot: head.GetBlockRoot(),
 		SyncMode:  uint32(dagTypes.NoSync),
 	})
+	if status.Code(err) == codes.Unavailable {
+		// The coordinator node is synchronizing gwat; it finalizes the heads itself
+		// until the synchronization is completed.
+		log.WithField("slot", head.GetSlot()).Info("Finalization: gwat is synchronizing, head skipped")
+		return nil
+	}
 	if err != nil {
 		return errors.Wrap(err, "GetFinalizationParams")
 	}
@@ -125,7 +133,12 @@ func (s *Service) processHead(ctx context.Context, head *coordpb.NewHeadEvent) e
 	}).Info("Finalization: calling dag_finalize")
 
 	finRes, err := s.gwat.ExecutionDagFinalize(ctx, fp)
-	if err != nil || finRes.LFSpine == nil {
+	if err == nil && finRes.LFSpine == nil {
+		err = errors.New("dag_finalize: no last finalized spine in result")
+	}
+	if err != nil {
+		// The coordinator node resynchronizes gwat on a reported failure.
+		s.reportFailure(ctx, paramsResp.GetCheckpoint(), err)
 		return errors.Wrap(err, "ExecutionDagFinalize")
 	}
 
@@ -141,6 +154,17 @@ func (s *Service) processHead(ctx context.Context, head *coordpb.NewHeadEvent) e
 	}).Info("Finalization: success")
 
 	return nil
+}
+
+// reportFailure reports a failed dag_finalize to the coordinator node.
+func (s *Service) reportFailure(ctx context.Context, paramCp *coordpb.FinalizationCheckpoint, finErr error) {
+	_, err := s.coord.SubmitFinalizationResult(ctx, &coordpb.SubmitFinalizationResultRequest{
+		ParamCheckpoint: paramCp,
+		Error:           finErr.Error(),
+	})
+	if err != nil {
+		log.WithError(err).Warn("Finalization: failed to report dag_finalize error")
+	}
 }
 
 // protoToFinalizationParams converts the gRPC response to the dag_finalize params.

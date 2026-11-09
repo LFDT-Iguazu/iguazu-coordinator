@@ -8,6 +8,8 @@ Release notes for every version are published with its
 ### Fixed
 
 - The finalization loop closes the `StreamNewHeads` stream before it reconnects after an error. Streams left open made the coordinator node block on sending new heads.
+- The finalization loop reports a failed `dag_finalize` to the coordinator node through the new `error` field of `SubmitFinalizationResultRequest`, so the node resynchronizes gwat. A result without a last finalized spine is now treated as a failure instead of being ignored.
+- The finalization loop skips a head while the coordinator node synchronizes gwat (`GetFinalizationParams` returns `Unavailable`) instead of reconnecting.
 
 ### Added
 
