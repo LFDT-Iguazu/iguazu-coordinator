@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"net/http"
 	"testing"
 
 	coordpb "github.com/LFDT-Iguazu/iguazu-coordinator/proto/coordpb"
@@ -27,6 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -188,10 +191,14 @@ func (s *stubHeadStream) Recv() (*coordpb.NewHeadEvent, error) {
 	return nil, s.ctx.Err()
 }
 
-// stubCoordClient opens stubHeadStream streams and fails GetFinalizationParams.
+// stubCoordClient opens stubHeadStream streams, returns the configured
+// finalization params and records submitted results.
 type stubCoordClient struct {
 	coordpb.CoordinatorInternalClient
-	streamCtx context.Context
+	streamCtx  context.Context
+	paramsResp *coordpb.FinalizationParamsResponse
+	paramsErr  error
+	submitted  []*coordpb.SubmitFinalizationResultRequest
 }
 
 func (c *stubCoordClient) StreamNewHeads(ctx context.Context, _ *emptypb.Empty, _ ...grpc.CallOption) (coordpb.CoordinatorInternal_StreamNewHeadsClient, error) {
@@ -200,15 +207,46 @@ func (c *stubCoordClient) StreamNewHeads(ctx context.Context, _ *emptypb.Empty, 
 }
 
 func (c *stubCoordClient) GetFinalizationParams(context.Context, *coordpb.GetFinalizationParamsRequest, ...grpc.CallOption) (*coordpb.FinalizationParamsResponse, error) {
-	return nil, errors.New("params failed")
+	return c.paramsResp, c.paramsErr
+}
+
+func (c *stubCoordClient) SubmitFinalizationResult(_ context.Context, req *coordpb.SubmitFinalizationResultRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+	c.submitted = append(c.submitted, req)
+	return &emptypb.Empty{}, nil
 }
 
 func TestRun_ClosesStreamOnError(t *testing.T) {
-	coord := &stubCoordClient{}
+	coord := &stubCoordClient{paramsErr: errors.New("params failed")}
 	s := &Service{coord: coord}
 
 	err := s.run(context.Background())
 	require.ErrorContains(t, err, "params failed")
 	require.NotNil(t, coord.streamCtx)
 	assert.ErrorIs(t, coord.streamCtx.Err(), context.Canceled, "stream context must be canceled when run returns")
+}
+
+// ---- processHead error handling tests ----
+
+func TestProcessHead_SkipsHeadWhileGwatSyncing(t *testing.T) {
+	coord := &stubCoordClient{paramsErr: status.Error(codes.Unavailable, "gwat synchronization is in progress")}
+	// gwat is nil: the head must be skipped before dag_finalize is called.
+	s := &Service{coord: coord}
+
+	err := s.processHead(context.Background(), &coordpb.NewHeadEvent{Slot: 1, BlockRoot: make([]byte, 32)})
+	require.NoError(t, err)
+	assert.Empty(t, coord.submitted)
+}
+
+func TestProcessHead_ReportsDagFinalizeError(t *testing.T) {
+	paramCp := &coordpb.FinalizationCheckpoint{Epoch: 6, Root: common.HexToHash("0xcccc").Bytes()}
+	coord := &stubCoordClient{paramsResp: &coordpb.FinalizationParamsResponse{Checkpoint: paramCp}}
+	gwat := newTestGwat(t, http.StatusOK, `{"jsonrpc":"2.0","id":1,"result":{"error":"checkpoint spine not found"}}`, nil)
+	s := &Service{coord: coord, gwat: gwat}
+
+	err := s.processHead(context.Background(), &coordpb.NewHeadEvent{Slot: 1, BlockRoot: make([]byte, 32)})
+	require.ErrorContains(t, err, "checkpoint spine not found")
+	require.Len(t, coord.submitted, 1)
+	assert.Contains(t, coord.submitted[0].GetError(), "checkpoint spine not found")
+	assert.Equal(t, paramCp, coord.submitted[0].GetParamCheckpoint())
+	assert.Empty(t, coord.submitted[0].GetResultCpRoot())
 }
