@@ -16,6 +16,8 @@
 package finalization
 
 import (
+	"context"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -24,6 +26,8 @@ import (
 	"github.com/LFDT-Iguazu/iguazu-types/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // ---- protoToFinalizationParams tests ----
@@ -164,4 +168,47 @@ func TestProcessHead_EndToEnd(t *testing.T) {
 	assert.Equal(t, lfSpine.Bytes(), req.GetLfSpine())
 	assert.Equal(t, cpEpoch, req.GetResultCpEpoch())
 	assert.Equal(t, cpRoot.Bytes(), req.GetResultCpRoot())
+}
+
+// ---- run stream lifetime test ----
+
+// stubHeadStream returns one head and then blocks until its context is done.
+type stubHeadStream struct {
+	coordpb.CoordinatorInternal_StreamNewHeadsClient
+	ctx  context.Context
+	sent bool
+}
+
+func (s *stubHeadStream) Recv() (*coordpb.NewHeadEvent, error) {
+	if !s.sent {
+		s.sent = true
+		return &coordpb.NewHeadEvent{Slot: 1, BlockRoot: make([]byte, 32)}, nil
+	}
+	<-s.ctx.Done()
+	return nil, s.ctx.Err()
+}
+
+// stubCoordClient opens stubHeadStream streams and fails GetFinalizationParams.
+type stubCoordClient struct {
+	coordpb.CoordinatorInternalClient
+	streamCtx context.Context
+}
+
+func (c *stubCoordClient) StreamNewHeads(ctx context.Context, _ *emptypb.Empty, _ ...grpc.CallOption) (coordpb.CoordinatorInternal_StreamNewHeadsClient, error) {
+	c.streamCtx = ctx
+	return &stubHeadStream{ctx: ctx}, nil
+}
+
+func (c *stubCoordClient) GetFinalizationParams(context.Context, *coordpb.GetFinalizationParamsRequest, ...grpc.CallOption) (*coordpb.FinalizationParamsResponse, error) {
+	return nil, errors.New("params failed")
+}
+
+func TestRun_ClosesStreamOnError(t *testing.T) {
+	coord := &stubCoordClient{}
+	s := &Service{coord: coord}
+
+	err := s.run(context.Background())
+	require.ErrorContains(t, err, "params failed")
+	require.NotNil(t, coord.streamCtx)
+	assert.ErrorIs(t, coord.streamCtx.Err(), context.Canceled, "stream context must be canceled when run returns")
 }

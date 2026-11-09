@@ -5,6 +5,9 @@ Release notes for every version are published with its
 
 ## Unreleased
 
+### Fixed
+
+- The finalization loop closes the `StreamNewHeads` stream before it reconnects after an error. Streams left open made the coordinator node block on sending new heads.
 
 ### Added
 
