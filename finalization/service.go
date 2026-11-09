@@ -76,6 +76,12 @@ func (s *Service) Run(ctx context.Context) {
 
 // run is a single iteration of the outer retry loop.
 func (s *Service) run(ctx context.Context) error {
+	// The stream must be closed when this iteration ends. Otherwise the server keeps
+	// sending heads into a stream nobody reads, and its send blocks once the flow
+	// control window is full.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	stream, err := s.coord.StreamNewHeads(ctx, &emptypb.Empty{})
 	if err != nil {
 		return errors.Wrap(err, "StreamNewHeads")
