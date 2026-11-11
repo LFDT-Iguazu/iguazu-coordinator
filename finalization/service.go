@@ -209,6 +209,10 @@ func protoToFinalizationParams(r *coordpb.FinalizationParamsResponse) *dagTypes.
 		if raw := op.GetBalanceWei(); len(raw) > 0 {
 			vs.Balance = new(big.Int).SetBytes(raw)
 		}
+		// A zero stake amount comes as a single zero byte, so it is kept non-nil.
+		if raw := op.GetStakeAmountWei(); len(raw) > 0 {
+			vs.StakeAmount = new(big.Int).SetBytes(raw)
+		}
 		fp.ValSyncData = append(fp.ValSyncData, vs)
 	}
 

@@ -53,6 +53,7 @@ func TestProtoToFinalizationParams_FullRoundTrip(t *testing.T) {
 	txHash := common.HexToHash("0x6666")
 	amount := big.NewInt(1000)
 	balance := big.NewInt(5000)
+	stakeAmount := big.NewInt(600)
 
 	resp := &coordpb.FinalizationParamsResponse{
 		Spines:    [][]byte{spine1.Bytes(), spine2.Bytes()},
@@ -74,6 +75,15 @@ func TestProtoToFinalizationParams_FullRoundTrip(t *testing.T) {
 				ActivationEpoch: 2,
 				ExitEpoch:       100,
 				BalanceWei:      balance.Bytes(),
+				StakeAmountWei:  stakeAmount.Bytes(),
+			},
+			{
+				OpType:         uint32(dagTypes.UpdateBalance),
+				AmountWei:      amount.Bytes(),
+				StakeAmountWei: []byte{0},
+			},
+			{
+				OpType: uint32(dagTypes.Activate),
 			},
 		},
 		SyncMode: uint32(dagTypes.HeadSync),
@@ -94,7 +104,7 @@ func TestProtoToFinalizationParams_FullRoundTrip(t *testing.T) {
 	assert.Equal(t, cpRoot, fp.Checkpoint.Root)
 	assert.Equal(t, cpSpine, fp.Checkpoint.Spine)
 
-	require.Len(t, fp.ValSyncData, 1)
+	require.Len(t, fp.ValSyncData, 3)
 	op := fp.ValSyncData[0]
 	assert.Equal(t, dagTypes.UpdateBalance, op.OpType)
 	assert.Equal(t, uint64(5), op.ProcEpoch)
@@ -105,6 +115,11 @@ func TestProtoToFinalizationParams_FullRoundTrip(t *testing.T) {
 	assert.Equal(t, uint64(100), op.ExitEpoch)
 	assert.Equal(t, amount, op.Amount)
 	assert.Equal(t, balance, op.Balance)
+	assert.Equal(t, stakeAmount, op.StakeAmount)
+	// a zero stake amount must not be lost as nil
+	require.NotNil(t, fp.ValSyncData[1].StakeAmount)
+	assert.Equal(t, 0, fp.ValSyncData[1].StakeAmount.Sign())
+	assert.Nil(t, fp.ValSyncData[2].StakeAmount)
 }
 
 // ---- buildSubmitRequest tests ----
