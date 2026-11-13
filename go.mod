@@ -19,7 +19,7 @@ go 1.26.0
 toolchain go1.26.11
 
 require (
-	github.com/LFDT-Iguazu/iguazu-types v0.3.0
+	github.com/LFDT-Iguazu/iguazu-types v0.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
