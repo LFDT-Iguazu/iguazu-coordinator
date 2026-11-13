@@ -100,9 +100,9 @@ func run(cliCtx *cli.Context) error {
 		cancel()
 	}()
 
-	coordConn, err := grpc.Dial(coordEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	coordConn, err := grpc.NewClient(coordEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return fmt.Errorf("dial coordinator gRPC %s: %w", coordEndpoint, err)
+		return fmt.Errorf("create coordinator gRPC client %s: %w", coordEndpoint, err)
 	}
 	defer coordConn.Close()
 

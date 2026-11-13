@@ -51,10 +51,10 @@ func (c *coordinatorInternalClient) StreamNewHeads(ctx context.Context, in *empt
 		return nil, err
 	}
 	x := &coordinatorInternalStreamNewHeadsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
+	if err := x.SendMsg(in); err != nil {
 		return nil, err
 	}
-	if err := x.ClientStream.CloseSend(); err != nil {
+	if err := x.CloseSend(); err != nil {
 		return nil, err
 	}
 	return x, nil
@@ -76,7 +76,7 @@ type coordinatorInternalStreamNewHeadsClient struct {
 
 func (x *coordinatorInternalStreamNewHeadsClient) Recv() (*NewHeadEvent, error) {
 	m := new(NewHeadEvent)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
+	if err := x.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
